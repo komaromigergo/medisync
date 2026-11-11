@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-navy: #14284b;
+  --color-navy-2: #1e3a66;
+  --color-teal: #2f7893;
+  --color-teal-2: #6fb3c8;
+  --color-light: #a9d6e3;
+  --color-pale: #eaf4f8;
+  --color-ink: #14284b;
+  --color-muted: #4b6478;
+  --color-line: #d5e6ee;
+  --color-sev1: #5b8da0;
+  --color-sev2: #b7791f;
+  --color-sev3: #c2410c;
+  --color-sev4: #9b1c1c;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+}
+
+:root {
+  --background: #f6fafc;
+  --foreground: #14284b;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+button, [role="button"], a { -webkit-tap-highlight-color: transparent; }
+input, select, textarea { font: inherit; }
+:focus-visible { outline: 3px solid var(--color-teal-2); outline-offset: 2px; }
+
+.card {
+  background: #fff;
+  border: 1.5px solid var(--color-line);
+  border-radius: 20px;
+}
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  border-radius: 14px; padding: .8rem 1.25rem; font-weight: 600; min-height: 48px;
+  transition: background .15s, transform .05s, opacity .15s;
+  cursor: pointer;
+}
+.btn:active { transform: scale(.98); }
+.btn-primary { background: var(--color-navy); color: #fff; }
+.btn-primary:hover { background: var(--color-navy-2); }
+.btn-teal { background: var(--color-teal); color: #fff; }
+.btn-teal:hover { background: #276781; }
+.btn-ghost { background: var(--color-pale); color: var(--color-navy); border: 1.5px solid var(--color-line); }
+.btn-ghost:hover { background: #dcecf3; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.input {
+  width: 100%; border: 1.5px solid var(--color-line); border-radius: 14px; padding: .8rem 1rem; background: #fff; min-height: 48px;
+}
+.input:focus { border-color: var(--color-teal); }
+.label { font-size: .8rem; font-weight: 600; color: var(--color-muted); letter-spacing: .02em; }
+.h-caps { font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: .8rem; color: var(--color-teal); }
