@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -16,6 +17,14 @@ const TABS: { k: Mode; label: string; sub?: string }[] = [
   { k: "dap", label: "DÁP", sub: "szimuláció" },
   { k: "ujj", label: "Ujjlenyomat", sub: "szimuláció · vészhelyzet" },
 ];
+const CARDS_KEY = "medisync-cards-v1";
+const nuid = (u: string) => u.replace(/[^0-9a-z-]/gi, "").toUpperCase();
+function loadCards(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(CARDS_KEY) || "{}"); } catch { return {}; }
+}
+function saveCard(uid: string, patientId: string) {
+  try { localStorage.setItem(CARDS_KEY, JSON.stringify({ ...loadCards(), [nuid(uid)]: patientId })); } catch { /* semmi */ }
+}
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
 
 function Inner() {
@@ -30,7 +39,31 @@ function Inner() {
   const [reason, setReason] = useState("");
   const [dapStep, setDapStep] = useState<0 | 1 | 2>(0);
   const [dapPick, setDapPick] = useState("");
+  const [nfc, setNfc] = useState<"" | "figyel" | "nincs" | "hiba">("");
+  const [nfcMsg, setNfcMsg] = useState("");
   const patients = state!.patients;
+
+  async function startNfc() {
+    // Web NFC: csak Android Chrome, HTTPS alatt, felhasználói érintés után
+    const NDEF = (window as unknown as { NDEFReader?: new () => any }).NDEFReader;
+    if (!NDEF) { setNfc("nincs"); return; }
+    try {
+      const r = new NDEF();
+      await r.scan();
+      setNfc("figyel"); setNfcMsg("");
+      r.onreadingerror = () => setNfcMsg("A kártyát nem sikerült beolvasni, próbálja újra.");
+      r.onreading = (ev: any) => {
+        let uid = "";
+        for (const rec of ev.message?.records ?? []) {
+          if (rec.recordType === "text" || rec.recordType === "url") {
+            const t = new TextDecoder(rec.encoding || "utf-8").decode(rec.data).trim();
+            if (/^MEDISYNC:/i.test(t)) { uid = t.replace(/^MEDISYNC:/i, ""); break; }
+          }
+        }
+        byCard(uid || ev.serialNumber || "");
+      };
+    } catch (e) { setNfc("hiba"); setNfcMsg(String((e as Error)?.message ?? e)); }
+  }
 
   function open(p: Patient, method: string, emergency = false, detail?: string) {
     log({
@@ -42,7 +75,9 @@ function Inner() {
 
   function byCard(uid: string) {
     setLastUid(uid);
-    const p = patients.find((x) => x.cardUid && x.cardUid.toLowerCase() === uid.toLowerCase());
+    const key = nuid(uid);
+    const bound = loadCards()[key];
+    const p = patients.find((x) => x.id === bound) ?? patients.find((x) => x.cardUid && nuid(x.cardUid) === key);
     if (p) open(p, `kártya (${uid})`);
     else setErr(`Ismeretlen kártya: ${uid}. Az alábbi listából hozzárendelheti egy beteghez.`);
   }
@@ -122,9 +157,17 @@ function Inner() {
               </div>
               <div>
                 <div className="text-xl font-extrabold">Érintse a kártyát az olvasóhoz</div>
-                <div className="text-muted">A USB RFID/NFC olvasó billentyűzetként küldi be a kártya azonosítóját; az oldal automatikusan felismeri.</div>
+                <div className="text-muted">Az USB RFID/NFC olvasó billentyűzetként küldi be a kártya azonosítóját, az Android tablet pedig saját NFC-olvasóval is képes olvasni. Ismeretlen kártyát egyszer hozzá lehet rendelni egy beteghez.</div>
                 {lastUid && <div className="text-sm mt-1">Utolsó olvasott azonosító: <b className="tabular-nums">{lastUid}</b></div>}
               </div>
+            </div>
+            <div className="rounded-2xl border-2 border-line bg-pale p-4">
+              <div className="font-bold mb-1">Android tablet saját NFC-olvasója</div>
+              <p className="text-sm text-muted mb-3">Chrome böngészőben működik (Android). Kattintson a gombra, majd érintse a kártyát a tablet hátuljához.</p>
+              <button className="btn btn-teal" onClick={startNfc}>{nfc === "figyel" ? "Olvasás aktív, érintse a kártyát…" : "NFC-olvasás indítása"}</button>
+              {nfc === "nincs" && <p className="text-sm mt-2 text-[#8a5a12]">Ez az eszköz vagy böngésző nem támogatja a Web NFC-t (iPhone/iPad, MacBook vagy nem Chrome). Használjon USB-olvasót vagy a szimulációt.</p>}
+              {nfc === "hiba" && <p className="text-sm mt-2 text-[#7f1d1d]">NFC-hiba: {nfcMsg}. Ellenőrizze, hogy az NFC be van kapcsolva, és engedélyezte a böngészőnek.</p>}
+              {nfc === "figyel" && nfcMsg && <p className="text-sm mt-2 text-[#8a5a12]">{nfcMsg}</p>}
             </div>
             <div>
               <div className="label mb-2">Olvasó nélkül: kártya érintésének szimulálása</div>
@@ -139,7 +182,7 @@ function Inner() {
               <div className="rounded-2xl border-2 border-line bg-pale p-4">
                 <div className="font-bold mb-2">Kártya hozzárendelése ({lastUid})</div>
                 <div className="flex flex-wrap gap-3">
-                  {patients.map((p) => <button key={p.id} className="btn btn-teal" onClick={() => { assignCard(p.id, lastUid); setErr(""); }}>{p.name}</button>)}
+                  {patients.map((p) => <button key={p.id} className="btn btn-teal" onClick={() => { assignCard(p.id, lastUid); saveCard(lastUid, p.id); setErr(""); }}>{p.name}</button>)}
                 </div>
               </div>
             )}
