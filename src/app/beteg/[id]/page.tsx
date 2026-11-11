@@ -44,7 +44,7 @@ function Inner() {
       <section className="card p-5">
         <h2 className="text-xl font-extrabold mb-1">Digitális azonosítóm (DÁP-szimuláció)</h2>
         <p className="text-sm text-muted mb-3">Az orvos ezt a QR-kódot olvassa be, hogy azonosítson. A valódi rendszerben ezt a DÁP-alkalmazás adná.</p>
-        <QrCode text={`MEDISYNC:${p.cardUid ?? p.id}`} />
+        <QrCode text={`MEDISYNC${(p.cardUid ?? p.id).replace(/[^0-9a-z]/gi, "").toUpperCase()}`} />
       </section>
 
       <section className="card p-5">

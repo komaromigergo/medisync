@@ -19,7 +19,7 @@ const TABS: { k: Mode; label: string; sub?: string }[] = [
   { k: "ujj", label: "Ujjlenyomat", sub: "szimuláció · vészhelyzet" },
 ];
 const CARDS_KEY = "medisync-cards-v1";
-const nuid = (u: string) => u.replace(/[^0-9a-z-]/gi, "").toUpperCase();
+const nuid = (u: string) => u.replace(/[^0-9a-z]/gi, "").toUpperCase().replace(/^MEDISYNC/, "");
 function loadCards(): Record<string, string> {
   try { return JSON.parse(localStorage.getItem(CARDS_KEY) || "{}"); } catch { return {}; }
 }
@@ -75,7 +75,6 @@ function Inner() {
   }
 
   function byCard(uid: string) {
-    uid = uid.replace(/^MEDISYNC:/i, "");
     setLastUid(uid);
     const key = nuid(uid);
     const bound = loadCards()[key];
@@ -87,7 +86,7 @@ function Inner() {
   // billentyűzet-emulációs (keyboard wedge) olvasó: gyors karaktersorozat + Enter
   const buf = useRef({ s: "", t: 0 });
   useEffect(() => {
-    if (mode !== "kartya") return;
+    if (mode !== "kartya" && mode !== "dap") return;
     const h = (e: KeyboardEvent) => {
       const now = performance.now();
       if (now - buf.current.t > 120) buf.current.s = "";
@@ -195,7 +194,7 @@ function Inner() {
             <p className="text-muted">A DÁP (Digitális Állampolgárság Program) valódi integrációja állami szerződést igényel. A demóban a beteg digitális azonosítóját egy QR-kód helyettesíti.</p>
             <div className="rounded-2xl border-2 border-line bg-pale p-4">
               <div className="font-bold mb-1">1. QR-kód beolvasása a beteg telefonjáról</div>
-              <p className="text-sm text-muted mb-3">A beteg a saját nézetében (Beteg → belépés) megmutatja a „Digitális azonosítóm" QR-kódot, az orvos a kamerával beolvassa.</p>
+              <p className="text-sm text-muted mb-3">A beteg a saját nézetében (Beteg → belépés) megmutatja a „Digitális azonosítóm" QR-kódot. Az orvos <b>USB/Bluetooth vonalkód-olvasóval</b> beolvassa (a fül nyitva tartása elég, nincs teendő), vagy a kamerával:</p>
               <QrScanner onResult={byCard} />
             </div>
             <div className="font-bold">2. Vagy: jóváhagyás szimulálása</div>
