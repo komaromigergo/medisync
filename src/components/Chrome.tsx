@@ -19,7 +19,6 @@ const NAV = [
   { href: "/orvos", label: "Orvos" },
   { href: "/beteg", label: "Beteg" },
   { href: "/patika", label: "Patika" },
-  { href: "/demo", label: "Bemutató" },
 ];
 
 export function Header() {

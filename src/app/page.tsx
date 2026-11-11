@@ -20,7 +20,6 @@ export default function Home() {
           </Link>
         ))}
       </div>
-      <div className="mt-6"><Link href="/demo" className="btn btn-teal">Bemutató forgatókönyv</Link></div>
     </div>
   );
 }
