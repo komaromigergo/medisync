@@ -8,7 +8,9 @@ const CARDS = [
 
 export default function Home() {
   return (
-    <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-12">
+    <div className="relative max-w-[1100px] mx-auto px-4 sm:px-6 py-12">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/logo-vertical-tagline.png" alt="" aria-hidden="true" className="hidden lg:block absolute right-[max(2rem,calc(50%-520px))] top-24 w-48 h-auto opacity-95" />
       <div className="h-caps">OTIO projekt · interaktív demó</div>
       <h1 className="text-4xl sm:text-5xl font-extrabold mt-2 leading-tight">Egy beteg, egy profil,<br />biztonságos gyógyszerfelírás.</h1>
       <p className="text-lg text-muted mt-4 max-w-2xl">A MediSync gyors azonosítást és automatikus gyógyszer-ellenőrzést ad az orvosnak, átlátható információt a betegnek, és patikai cserét terméshiány esetén. Az alábbi demó az OGYÉI törzskönyvi lista (10 ezernél több készítmény) alapján működik.</p>
