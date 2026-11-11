@@ -7,6 +7,7 @@ import { equivalentProducts } from "@/lib/engine";
 import { huName } from "@/lib/knowledge";
 import { dosingParts, fmtDate, fmtDateTime } from "@/lib/util";
 import { QrCode } from "@/components/QrCode";
+import { rxQrText } from "@/lib/cards";
 import { Gate, Pill } from "@/components/ui";
 
 function Schedule({ d }: { d: import("@/lib/types").Dosing }) {
@@ -67,6 +68,12 @@ function Inner() {
         {rxs.length === 0 ? <div className="text-muted">Nincs recept.</div> : rxs.map((r) => (
           <div key={r.id} className="mb-5 last:mb-0">
             <div className="flex flex-wrap items-center gap-2 mb-2"><b className="tabular-nums">{r.id}</b><Pill tone={r.status === "kiváltva" ? "teal" : "warn"}>{r.status === "kiváltva" ? "kiváltva" : "kiváltásra vár"}</Pill><span className="text-sm text-muted">{fmtDate(r.createdAt)} · {r.doctor}</span></div>
+            {r.status === "kiadva" && (
+              <div className="mb-3 flex flex-wrap items-center gap-4 rounded-2xl bg-pale border border-line p-3">
+                <QrCode text={rxQrText(r.id)} size={140} />
+                <div className="text-sm"><b>Recept-QR</b><br />Mutassa meg a patikában, a gyógyszerész ezt olvassa be.</div>
+              </div>
+            )}
             <div className="space-y-3">
               {r.items.map((i) => {
                 const disp = r.dispenses[i.id];

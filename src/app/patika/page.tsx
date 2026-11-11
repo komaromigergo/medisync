@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { equivalentProducts } from "@/lib/engine";
@@ -8,6 +8,9 @@ import { huName } from "@/lib/knowledge";
 import { dosingText, fmtDateTime, fmtTaj } from "@/lib/util";
 import { PHARMACY } from "@/lib/demo";
 import { Gate, Pill } from "@/components/ui";
+import { QrScanner } from "@/components/QrScanner";
+import { findPatientByCode, parseRxCode } from "@/lib/cards";
+import { useWedge } from "@/lib/useWedge";
 import type { Product, Prescription, RxItem } from "@/lib/types";
 
 function Item({ rx, item }: { rx: Prescription; item: RxItem }) {
@@ -62,21 +65,57 @@ function Item({ rx, item }: { rx: Prescription; item: RxItem }) {
 }
 
 function Inner() {
-  const { state, patient } = useStore();
+  const { state, patient, log } = useStore();
   const sp = useSearchParams();
-  const focus = sp.get("rx");
-  const list = [...state!.prescriptions].sort((a, b) => (a.status === b.status ? b.createdAt.localeCompare(a.createdAt) : a.status === "kiadva" ? -1 : 1));
+  const [focus, setFocus] = useState<string | null>(sp.get("rx"));
+  const [who, setWho] = useState<string | null>(null);
+  const [scanMsg, setScanMsg] = useState("");
+  const [cam, setCam] = useState(false);
+
+  function onScan(code: string) {
+    const rxDigits = parseRxCode(code);
+    if (rxDigits) {
+      const rx = state!.prescriptions.find((r) => r.id.replace(/\D/g, "") === rxDigits);
+      if (!rx) return setScanMsg("Ismeretlen recept-QR.");
+      setFocus(rx.id); setWho(rx.patientId); setScanMsg("");
+      log({ patientId: rx.patientId, actorRole: "gyógyszerész", actorName: PHARMACY.name, action: "Recept azonosítása (QR)", detail: rx.id });
+      return;
+    }
+    const p = findPatientByCode(state!.patients, code);
+    if (!p) return setScanMsg(`Ismeretlen QR-kód: ${code}`);
+    setWho(p.id); setFocus(null); setScanMsg("");
+    log({ patientId: p.id, actorRole: "gyógyszerész", actorName: PHARMACY.name, action: "Beteg azonosítása a patikában (QR)" });
+  }
+  useWedge(onScan);
+  useEffect(() => { if (focus) document.getElementById(`rx-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); }, [focus]);
+
+  const list = [...state!.prescriptions].filter((r) => !who || r.patientId === who).sort((a, b) => (a.status === b.status ? b.createdAt.localeCompare(a.createdAt) : a.status === "kiadva" ? -1 : 1));
   return (
     <div className="max-w-[1000px] mx-auto px-4 sm:px-6 py-8">
       <div className="h-caps">Patikai nézet · {PHARMACY.name}, {PHARMACY.place}</div>
       <h1 className="text-3xl font-extrabold mt-1 mb-1">Receptek kiváltása</h1>
       <p className="text-muted mb-6">Bejelentkezve: {PHARMACY.pharmacist}. A beteg az EESZT-n keresztül kapja az értesítést a kiadásról és a cseréről.</p>
+      <div className="card p-5 mb-5">
+        <div className="h-caps mb-1">Azonosítás QR-kóddal</div>
+        <p className="text-sm text-muted mb-3">Olvassa be a beteg digitális azonosítóját vagy a recept QR-kódját a vonalkód-olvasóval (a lap nyitva tartása elég), vagy a kamerával.</p>
+        {who ? (
+          <div className="rounded-2xl border-2 border-[#b7dccb] bg-[#eefaf3] p-3 flex flex-wrap items-center gap-3">
+            <b className="text-[#1f6b43]">✓ Azonosítva: {patient(who)?.name}</b>
+            <span className="text-sm text-muted">TAJ {patient(who) ? fmtTaj(patient(who)!.taj) : ""}</span>
+            <button className="btn btn-ghost !min-h-9 !py-1 ml-auto" onClick={() => { setWho(null); setFocus(null); }}>Szűrés törlése</button>
+          </div>
+        ) : (
+          <button className="btn btn-ghost" onClick={() => setCam((c) => !c)}>{cam ? "Kamera elrejtése" : "Kamera használata"}</button>
+        )}
+        {cam && !who && <div className="mt-3"><QrScanner onResult={(c) => { setCam(false); onScan(c); }} /></div>}
+        {scanMsg && <p className="text-sm mt-2 text-[#7f1d1d] font-semibold">{scanMsg}</p>}
+      </div>
       {list.length === 0 && <div className="card p-6 text-muted">Nincs recept.</div>}
       <div className="space-y-5">
         {list.map((rx) => {
           const p = patient(rx.patientId);
           return (
-            <section key={rx.id} className={`card p-5 ${focus === rx.id ? "ring-2 ring-teal" : ""}`}>
+            <section key={rx.id} id={`rx-${rx.id}`} className={`card p-5 ${focus === rx.id ? "ring-4 ring-teal" : ""}`}>
               <div className="flex flex-wrap items-center gap-3 mb-3">
                 <b className="text-lg tabular-nums">{rx.id}</b>
                 <Pill tone={rx.status === "kiváltva" ? "teal" : "warn"}>{rx.status === "kiváltva" ? "kiváltva" : "kiváltásra vár"}</Pill>
