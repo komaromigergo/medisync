@@ -6,6 +6,7 @@ import { useStore } from "@/lib/store";
 import { equivalentProducts } from "@/lib/engine";
 import { huName } from "@/lib/knowledge";
 import { dosingParts, fmtDate, fmtDateTime } from "@/lib/util";
+import { QrCode } from "@/components/QrCode";
 import { Gate, Pill } from "@/components/ui";
 
 function Schedule({ d }: { d: import("@/lib/types").Dosing }) {
@@ -39,6 +40,12 @@ function Inner() {
         <div className="h-caps">Betegnézet</div>
         <h1 className="text-3xl font-extrabold mt-1">Üdvözöljük, {p.name}!</h1>
       </div>
+
+      <section className="card p-5">
+        <h2 className="text-xl font-extrabold mb-1">Digitális azonosítóm (DÁP-szimuláció)</h2>
+        <p className="text-sm text-muted mb-3">Az orvos ezt a QR-kódot olvassa be, hogy azonosítson. A valódi rendszerben ezt a DÁP-alkalmazás adná.</p>
+        <QrCode text={`MEDISYNC:${p.cardUid ?? p.id}`} />
+      </section>
 
       <section className="card p-5">
         <div className="flex items-center gap-3 mb-3"><h2 className="text-xl font-extrabold">Értesítések</h2>{unread > 0 && <Pill tone="teal">{unread} új</Pill>}</div>

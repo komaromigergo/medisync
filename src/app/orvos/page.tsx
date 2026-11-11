@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { QrScanner } from "@/components/QrScanner";
 import { useStore } from "@/lib/store";
 import { DOCTOR } from "@/lib/demo";
 import { Gate } from "@/components/ui";
@@ -14,7 +15,7 @@ const TABS: { k: Mode; label: string; sub?: string }[] = [
   { k: "taj", label: "TAJ-szám" },
   { k: "nev", label: "Név + születési dátum" },
   { k: "kartya", label: "Kártya (RFID / NFC)" },
-  { k: "dap", label: "DÁP", sub: "szimuláció" },
+  { k: "dap", label: "DÁP / QR-kód", sub: "szimuláció" },
   { k: "ujj", label: "Ujjlenyomat", sub: "szimuláció · vészhelyzet" },
 ];
 const CARDS_KEY = "medisync-cards-v1";
@@ -74,10 +75,11 @@ function Inner() {
   }
 
   function byCard(uid: string) {
+    uid = uid.replace(/^MEDISYNC:/i, "");
     setLastUid(uid);
     const key = nuid(uid);
     const bound = loadCards()[key];
-    const p = patients.find((x) => x.id === bound) ?? patients.find((x) => x.cardUid && nuid(x.cardUid) === key);
+    const p = patients.find((x) => x.id === bound) ?? patients.find((x) => x.cardUid && nuid(x.cardUid) === key) ?? patients.find((x) => nuid(x.id) === key);
     if (p) open(p, `kártya (${uid})`);
     else setErr(`Ismeretlen kártya: ${uid}. Az alábbi listából hozzárendelheti egy beteghez.`);
   }
@@ -190,7 +192,13 @@ function Inner() {
         )}
         {mode === "dap" && (
           <div className="space-y-4 max-w-lg">
-            <p className="text-muted">A DÁP (Digitális Állampolgárság Program) valódi integrációja állami szerződést igényel. A demóban a jóváhagyás menetét szimuláljuk.</p>
+            <p className="text-muted">A DÁP (Digitális Állampolgárság Program) valódi integrációja állami szerződést igényel. A demóban a beteg digitális azonosítóját egy QR-kód helyettesíti.</p>
+            <div className="rounded-2xl border-2 border-line bg-pale p-4">
+              <div className="font-bold mb-1">1. QR-kód beolvasása a beteg telefonjáról</div>
+              <p className="text-sm text-muted mb-3">A beteg a saját nézetében (Beteg → belépés) megmutatja a „Digitális azonosítóm" QR-kódot, az orvos a kamerával beolvassa.</p>
+              <QrScanner onResult={byCard} />
+            </div>
+            <div className="font-bold">2. Vagy: jóváhagyás szimulálása</div>
             {dapStep === 0 && (
               <>
                 <label className="label" htmlFor="dp">Beteg</label>
