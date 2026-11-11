@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const CARDS = [
-  { href: "/orvos", t: "Orvosi nézet", d: "Beteg azonosítása (TAJ, kártya, DÁP, ujjlenyomat), profil, gyógyszerfelírás ütközés-ellenőrzéssel.", c: "bg-navy text-white" },
+  { href: "/orvos", t: "Orvosi nézet", d: "Beteg azonosítása (TAJ, kártya, DÁP, ujjlenyomat), profil, gyógyszerfelírás ütközés-ellenőrzéssel.", c: "!bg-navy !border-navy text-white" },
   { href: "/beteg", t: "Betegnézet", d: "Mit írtak fel, mire való, mikor és hányszor kell szedni; értesítések és hozzáférési napló.", c: "bg-white" },
   { href: "/patika", t: "Patikanézet", d: "Recept kiváltása, terméshiány esetén patikai csere azonos hatóanyagú készítményre.", c: "bg-white" },
 ];
