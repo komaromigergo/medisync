@@ -26,7 +26,11 @@ function Inner() {
     [p],
   );
   if (!p || !cat) return <div className="p-10">A beteg nem található. <Link className="underline" href="/orvos">Vissza az azonosításhoz</Link></div>;
-  const emergency = audit.find((a) => a.emergency && Date.now() - new Date(a.ts).getTime() < 1000 * 60 * 5);
+  // csak akkor vészhelyzeti, ha a beteg LEGUTÓBBI azonosítása vészhelyzeti (ujjlenyomatos) volt, és az 30 percnél frissebb
+  const lastId = audit
+    .filter((a) => a.actorRole === "orvos" && (a.action === "Beteg azonosítása" || a.action === "Vészhelyzeti hozzáférés"))
+    .reduce<(typeof audit)[number] | undefined>((best, a) => (!best || new Date(a.ts) > new Date(best.ts) ? a : best), undefined);
+  const emergency = lastId?.emergency && Date.now() - new Date(lastId.ts).getTime() < 1000 * 60 * 30 ? lastId : undefined;
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
