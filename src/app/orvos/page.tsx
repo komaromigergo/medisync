@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { findPatientByCode } from "@/lib/cards";
 import { QrScanner } from "@/components/QrScanner";
 import { useStore } from "@/lib/store";
 import { DOCTOR } from "@/lib/demo";
@@ -74,28 +75,31 @@ function Inner() {
     router.push(`/orvos/${p.id}`);
   }
 
-  function byCard(uid: string) {
+  function byCard(uid: string, digits?: string) {
     setLastUid(uid);
-    const key = nuid(uid);
-    const bound = loadCards()[key];
-    const p = patients.find((x) => x.id === bound) ?? patients.find((x) => x.cardUid && nuid(x.cardUid) === key) ?? patients.find((x) => nuid(x.id) === key);
+    const p = findPatientByCode(patients, uid, digits);
     if (p) open(p, `kártya (${uid})`);
     else setErr(`Ismeretlen kártya: ${uid}. Az alábbi listából hozzárendelheti egy beteghez.`);
   }
 
   // billentyűzet-emulációs (keyboard wedge) olvasó: gyors karaktersorozat + Enter
-  const buf = useRef({ s: "", t: 0 });
+  const buf = useRef({ s: "", d: "", t: 0 });
   useEffect(() => {
     if (mode !== "kartya" && mode !== "dap") return;
     const h = (e: KeyboardEvent) => {
       const now = performance.now();
-      if (now - buf.current.t > 120) buf.current.s = "";
+      if (now - buf.current.t > 120) { buf.current.s = ""; buf.current.d = ""; }
       buf.current.t = now;
       if (e.key === "Enter") {
         const uid = buf.current.s.trim();
-        buf.current.s = "";
-        if (uid.length >= 4) { e.preventDefault(); byCard(uid); }
-      } else if (e.key.length === 1) buf.current.s += e.key;
+        const digits = buf.current.d;
+        buf.current.s = ""; buf.current.d = "";
+        if (uid.length >= 4) { e.preventDefault(); byCard(uid, digits); }
+      } else if (e.key.length === 1) {
+        buf.current.s += e.key;
+        const m = /^(?:Digit|Numpad)(\d)$/.exec(e.code);
+        if (m) buf.current.d += m[1];
+      }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);

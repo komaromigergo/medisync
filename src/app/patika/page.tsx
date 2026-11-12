@@ -72,8 +72,8 @@ function Inner() {
   const [scanMsg, setScanMsg] = useState("");
   const [cam, setCam] = useState(false);
 
-  function onScan(code: string) {
-    const rxDigits = parseRxCode(code);
+  function onScan(code: string, digits?: string) {
+    const rxDigits = parseRxCode(code, digits);
     if (rxDigits) {
       const rx = state!.prescriptions.find((r) => r.id.replace(/\D/g, "") === rxDigits);
       if (!rx) return setScanMsg("Ismeretlen recept-QR.");
@@ -81,7 +81,7 @@ function Inner() {
       log({ patientId: rx.patientId, actorRole: "gyógyszerész", actorName: PHARMACY.name, action: "Recept azonosítása (QR)", detail: rx.id });
       return;
     }
-    const p = findPatientByCode(state!.patients, code);
+    const p = findPatientByCode(state!.patients, code, digits);
     if (!p) return setScanMsg(`Ismeretlen QR-kód: ${code}`);
     setWho(p.id); setFocus(null); setScanMsg("");
     log({ patientId: p.id, actorRole: "gyógyszerész", actorName: PHARMACY.name, action: "Beteg azonosítása a patikában (QR)" });
