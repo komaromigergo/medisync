@@ -11,6 +11,7 @@ export function EidReader({ onCard, onSim }: { onCard: (atr: string) => void; on
   const [readers, setReaders] = useState<string[]>([]);
   const [card, setCard] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mute, setMute] = useState(false);
   const cb = useRef(onCard);
   useEffect(() => { cb.current = onCard; }, [onCard]);
 
@@ -25,8 +26,9 @@ export function EidReader({ onCard, onSim }: { onCard: (atr: string) => void; on
         try {
           const m = JSON.parse(ev.data);
           if (m.type === "state") { setReaders(m.readers ?? []); setCard(m.card?.atr ?? null); }
-          if (m.type === "card" && m.atr) { setCard(m.atr); cb.current(m.atr); }
-          if (m.type === "remove") setCard(null);
+          if (m.type === "mute") setMute(true);
+          if (m.type === "card" && m.atr) { setMute(false); setCard(m.atr); cb.current(m.atr); }
+          if (m.type === "remove") { setCard(null); setMute(false); }
         } catch { /* ismeretlen üzenet */ }
       };
       ws.onclose = () => { setSt("nincs"); setCard(null); if (!stop) timer = setTimeout(connect, 3000); };
@@ -46,6 +48,7 @@ export function EidReader({ onCard, onSim }: { onCard: (atr: string) => void; on
         <div className="rounded-2xl border-2 border-line bg-pale p-4">
           <div>Olvasó: <b>{readers.length ? readers.join(", ") : "nincs csatlakoztatva olvasó"}</b></div>
           <div className="mt-1">Kártya: <b>{card ? "behelyezve" : "nincs"}</b>{card && <span className="text-xs text-muted ml-2 break-all">típusjel (ATR): {card}</span>}</div>
+          {mute && !card && <div className="mt-2 text-[#8a5a12] font-semibold">Kártya érzékelve, de a chip nem válaszol. Fordítsa meg, tolja mélyebbre, vagy próbáljon másik, chipes kártyát.</div>}
         </div>
       )}
       {st !== "csatlakozva" && (

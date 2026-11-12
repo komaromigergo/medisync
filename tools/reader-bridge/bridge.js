@@ -54,14 +54,23 @@ if (DEMO) {
     state.readers = [...new Set([...state.readers, reader.name])];
     pushState();
     reader.on("error", (e) => console.error("Olvasóhiba:", e.message));
+    let muteShown = false;
     reader.on("status", (status) => {
-      const changes = reader.state ^ status.state;
-      if (!changes) return;
-      if (changes & reader.SCARD_STATE_EMPTY && status.state & reader.SCARD_STATE_EMPTY) {
-        cardOut(reader.name);
-      } else if (changes & reader.SCARD_STATE_PRESENT && status.state & reader.SCARD_STATE_PRESENT) {
-        const atr = status.atr ? Buffer.from(status.atr).toString("hex").toUpperCase() : "ISMERETLEN";
-        cardIn(atr, reader.name);
+      const present = !!(status.state & reader.SCARD_STATE_PRESENT);
+      const atr = status.atr && status.atr.length ? Buffer.from(status.atr).toString("hex").toUpperCase() : "";
+      if (present && atr) {
+        muteShown = false;
+        if (!state.card || state.card.atr !== atr) cardIn(atr, reader.name);
+      } else if (present) {
+        if (!muteShown) {
+          muteShown = true;
+          console.log("Kártya érzékelve, de a chip nem válaszol (ATR üres). Fordítsa meg, tolja mélyebbre, vagy próbáljon másik, chipes kártyát.");
+          broadcast({ type: "mute", reader: reader.name });
+        }
+      } else {
+        muteShown = false;
+        if (state.card) cardOut(reader.name);
+        else broadcast({ type: "remove", reader: reader.name });
       }
       reader.state = status.state;
     });
