@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { digitOfKey, findPatientByCode } from "@/lib/cards";
+import { EidReader } from "@/components/EidReader";
 import { QrScanner } from "@/components/QrScanner";
 import { useStore } from "@/lib/store";
 import { DOCTOR } from "@/lib/demo";
@@ -11,11 +12,12 @@ import { Gate } from "@/components/ui";
 import { fmtTaj, onlyDigits, tajValid } from "@/lib/util";
 import type { Patient } from "@/lib/types";
 
-type Mode = "taj" | "nev" | "kartya" | "dap" | "ujj";
+type Mode = "taj" | "nev" | "kartya" | "eid" | "dap" | "ujj";
 const TABS: { k: Mode; label: string; sub?: string }[] = [
   { k: "taj", label: "TAJ-szám" },
   { k: "nev", label: "Név + születési dátum" },
   { k: "kartya", label: "Kártya (RFID / NFC)" },
+  { k: "eid", label: "e-személyi (olvasó)", sub: "chipolvasó · szimuláció" },
   { k: "dap", label: "DÁP / QR-kód", sub: "szimuláció" },
   { k: "ujj", label: "Ujjlenyomat", sub: "szimuláció · vészhelyzet" },
 ];
@@ -183,15 +185,13 @@ function Inner() {
                 <button className="btn btn-ghost" onClick={() => byCard("ISMERETLEN-0001")}>Ismeretlen kártya</button>
               </div>
             </div>
-            {lastUid && err.startsWith("Ismeretlen") && (
-              <div className="rounded-2xl border-2 border-line bg-pale p-4">
-                <div className="font-bold mb-2">Kártya hozzárendelése ({lastUid})</div>
-                <div className="flex flex-wrap gap-3">
-                  {patients.map((p) => <button key={p.id} className="btn btn-teal" onClick={() => { assignCard(p.id, lastUid); saveCard(lastUid, p.id); setErr(""); }}>{p.name}</button>)}
-                </div>
-              </div>
-            )}
           </div>
+        )}
+        {mode === "eid" && (
+          <EidReader
+            onCard={(atr) => byCard("ATR" + atr)}
+            onSim={() => byCard(patients.find((x) => x.id === "pt-elek")?.cardUid ?? "DEMO-ELEK")}
+          />
         )}
         {mode === "dap" && (
           <div className="space-y-4 max-w-lg">
@@ -235,6 +235,14 @@ function Inner() {
             </div>
           </div>
         )}
+        {lastUid && err.startsWith("Ismeretlen") && (
+                  <div className="mt-4 rounded-2xl border-2 border-line bg-pale p-4">
+                    <div className="font-bold mb-2">Kártya hozzárendelése ({lastUid})</div>
+                    <div className="flex flex-wrap gap-3">
+                      {patients.map((p) => <button key={p.id} className="btn btn-teal" onClick={() => { assignCard(p.id, lastUid); saveCard(lastUid, p.id); setErr(""); }}>{p.name}</button>)}
+                    </div>
+                  </div>
+                )}
         {err && <div role="alert" className="mt-4 rounded-xl bg-[#fbe9e9] border border-[#e6a1a1] text-[#7f1d1d] px-4 py-3 font-semibold">{err}</div>}
       </div>
     </div>

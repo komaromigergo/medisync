@@ -1,0 +1,15 @@
+{
+  "name": "medisync-reader-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Helyi híd: a chipkártya-olvasó (PC/SC) eseményeit továbbítja a MediSync demóoldalnak websockettel (csak 127.0.0.1).",
+  "main": "bridge.js",
+  "scripts": {
+    "start": "node bridge.js",
+    "demo": "node bridge.js --demo"
+  },
+  "dependencies": {
+    "pcsclite": "^1.0.1",
+    "ws": "^8.18.0"
+  }
+}
