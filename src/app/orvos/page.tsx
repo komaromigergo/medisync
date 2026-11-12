@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { digitOfKey, findPatientByCode } from "@/lib/cards";
 import { EidReader } from "@/components/EidReader";
+import { FingerprintReader } from "@/components/FingerprintReader";
 import { QrScanner } from "@/components/QrScanner";
 import { useStore } from "@/lib/store";
 import { DOCTOR } from "@/lib/demo";
@@ -19,8 +20,10 @@ const TABS: { k: Mode; label: string; sub?: string }[] = [
   { k: "kartya", label: "Kártya (RFID / NFC)" },
   { k: "eid", label: "e-személyi (olvasó)", sub: "chipolvasó · szimuláció" },
   { k: "dap", label: "DÁP / QR-kód", sub: "szimuláció" },
-  { k: "ujj", label: "Ujjlenyomat", sub: "szimuláció · vészhelyzet" },
+  { k: "ujj", label: "Ujjlenyomat", sub: "olvasó · vészhelyzet" },
 ];
+// az ujjlenyomat-olvasó tárolóhelyei (1. hely = Teszt Elek, 2. hely = Példa Piroska)
+const FP_SLOTS: Record<number, string> = { 1: "pt-elek", 2: "pt-piroska" };
 const CARDS_KEY = "medisync-cards-v1";
 const nuid = (u: string) => u.replace(/[^0-9a-z]/gi, "").toUpperCase().replace(/^MEDISYNC/, "");
 function loadCards(): Record<string, string> {
@@ -45,6 +48,7 @@ function Inner() {
   const [dapPick, setDapPick] = useState("");
   const [nfc, setNfc] = useState<"" | "figyel" | "nincs" | "hiba">("");
   const [nfcMsg, setNfcMsg] = useState("");
+  const [fpHit, setFpHit] = useState<Patient | null>(null);
   const patients = state!.patients;
 
   async function startNfc() {
@@ -224,14 +228,29 @@ function Inner() {
         {mode === "ujj" && (
           <div className="space-y-4 max-w-lg">
             <div className="rounded-2xl border-2 border-[#ecd29a] bg-[#fdf6e7] p-4 text-sm">
-              <b>Vészhelyzeti (break-glass) hozzáférés.</b> Ha a beteg nem tud azonosítani (eszméletlen), az ujjlenyomatos azonosítás és kötelező indoklás után az orvos hozzáfér az adatokhoz. A hozzáférés megkülönböztetetten naplózódik, a beteg utólag értesül. A demóban az ujjlenyomat-olvasást szimuláljuk.
+              <b>Vészhelyzeti (break-glass) hozzáférés.</b> Ha a beteg nem tud azonosítani (eszméletlen), az ujjlenyomatos azonosítás és kötelező indoklás után az orvos hozzáfér az adatokhoz. A hozzáférés megkülönböztetetten naplózódik, a beteg utólag értesül. Az ujjlenyomatot az USB-olvasó hasonlítja össze a saját memóriájában; az oldalra csak a találat azonosítója jut el. Olvasó nélkül szimulálható.
             </div>
             <label className="label" htmlFor="er">Indoklás (kötelező)</label>
             <input id="er" className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="pl. eszméletlen beteg, mentőellátás" />
-            <div className="flex flex-wrap gap-3">
-              {patients.map((p) => (
-                <button key={p.id} className="btn btn-primary" disabled={reason.trim().length < 6} onClick={() => open(p, "ujjlenyomat (szimuláció)", true, reason.trim())}>Ujjlenyomat: {p.name}</button>
-              ))}
+            <FingerprintReader
+              slots={Object.entries(FP_SLOTS).map(([id, pid]) => ({ id: Number(id), label: patients.find((x) => x.id === pid)?.name ?? pid }))}
+              onMatch={(id) => { const p = patients.find((x) => x.id === FP_SLOTS[id]); setFpHit(p ?? null); if (!p) setErr("Ismeretlen ujjlenyomat-hely: " + id); else setErr(""); }}
+            />
+            {fpHit && (
+              <div className="rounded-2xl border-2 border-[#b7dccb] bg-[#eefaf3] p-4">
+                <div className="font-extrabold text-[#1f6b43] mb-2">✓ Ujjlenyomat egyezik: {fpHit.name}</div>
+                <button className="btn btn-teal" disabled={reason.trim().length < 6} onClick={() => { const p = fpHit; setFpHit(null); open(p, "ujjlenyomat (olvasó)", true, reason.trim()); }}>
+                  {reason.trim().length < 6 ? "Írja be az indoklást a megnyitáshoz" : "Beteg megnyitása (vészhelyzeti hozzáférés)"}
+                </button>
+              </div>
+            )}
+            <div>
+              <div className="label mb-2">Olvasó nélkül: szimuláció</div>
+              <div className="flex flex-wrap gap-3">
+                {patients.map((p) => (
+                  <button key={p.id} className="btn btn-ghost" disabled={reason.trim().length < 6} onClick={() => open(p, "ujjlenyomat (szimuláció)", true, reason.trim())}>Ujjlenyomat: {p.name}</button>
+                ))}
+              </div>
             </div>
           </div>
         )}
