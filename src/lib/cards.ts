@@ -42,3 +42,12 @@ export function parseRxCode(code: string, digits?: string): string | null {
   }
   return null;
 }
+
+/** Egy billentyűleütésből számjegy, ha az: a fizikai számgomb, a beírt számjegy, vagy a magyar kiosztás nullája (felcserélt Mac-billentyűtípusnál "í"-ként érkezik). */
+export function digitOfKey(e: { key: string; code: string }): string | null {
+  const m = /^(?:Digit|Numpad)(\d)$/.exec(e.code);
+  if (m) return m[1];
+  if (/^\d$/.test(e.key)) return e.key;
+  if (e.key === "í" || e.key === "Í" || e.code === "Backquote" || e.code === "IntlBackslash") return "0";
+  return null;
+}

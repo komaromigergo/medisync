@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { digitOfKey } from "./cards";
 
 /** Billentyűzet-emulációs olvasó (RFID/vonalkód): gyors karaktersorozat + Enter. */
 export function useWedge(onCode: (code: string, digits?: string) => void, enabled = true) {
@@ -20,8 +21,8 @@ export function useWedge(onCode: (code: string, digits?: string) => void, enable
         if (code.length >= 4) { e.preventDefault(); cb.current(code, digits); }
       } else if (e.key.length === 1) {
         buf.s += e.key;
-        const m = /^(?:Digit|Numpad)(\d)$/.exec(e.code);
-        if (m) buf.d += m[1];
+        const dg = digitOfKey(e);
+        if (dg) buf.d += dg;
       }
     };
     window.addEventListener("keydown", h);

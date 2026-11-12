@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { findPatientByCode } from "@/lib/cards";
+import { digitOfKey, findPatientByCode } from "@/lib/cards";
 import { QrScanner } from "@/components/QrScanner";
 import { useStore } from "@/lib/store";
 import { DOCTOR } from "@/lib/demo";
@@ -97,8 +97,8 @@ function Inner() {
         if (uid.length >= 4) { e.preventDefault(); byCard(uid, digits); }
       } else if (e.key.length === 1) {
         buf.current.s += e.key;
-        const m = /^(?:Digit|Numpad)(\d)$/.exec(e.code);
-        if (m) buf.current.d += m[1];
+        const dg = digitOfKey(e);
+        if (dg) buf.current.d += dg;
       }
     };
     window.addEventListener("keydown", h);
