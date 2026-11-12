@@ -14,13 +14,22 @@ import { fmtTaj, onlyDigits, tajValid } from "@/lib/util";
 import type { Patient } from "@/lib/types";
 
 type Mode = "taj" | "nev" | "kartya" | "eid" | "dap" | "ujj";
-const TABS: { k: Mode; label: string; sub?: string }[] = [
-  { k: "taj", label: "TAJ-szám" },
-  { k: "nev", label: "Név + születési dátum" },
-  { k: "kartya", label: "Kártya (RFID / NFC)" },
-  { k: "eid", label: "e-személyi (olvasó)", sub: "chipolvasó · szimuláció" },
-  { k: "dap", label: "DÁP / QR-kód", sub: "szimuláció" },
-  { k: "ujj", label: "Ujjlenyomat", sub: "olvasó · vészhelyzet" },
+const ico = (d: React.ReactNode) => (
+  <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>
+);
+const TABS: { k: Mode; label: string; sub: string; device: boolean; icon: React.ReactNode }[] = [
+  { k: "taj", label: "TAJ-szám", sub: "kézi megadás", device: false,
+    icon: ico(<><rect x="3" y="5" width="18" height="14" rx="2.5" /><circle cx="8.5" cy="11" r="2" /><path d="M5.8 16c.6-1.6 1.7-2.3 2.7-2.3s2.1.7 2.7 2.3M14 10h4M14 13.5h3" /></>) },
+  { k: "nev", label: "Név + születési dátum", sub: "kézi megadás", device: false,
+    icon: ico(<><circle cx="10" cy="8" r="3.5" /><path d="M3.5 20c.8-3.6 3.4-5.5 6.5-5.5 1.3 0 2.5.3 3.5 1" /><circle cx="17" cy="17" r="3" /><path d="m19.2 19.2 2 2" /></>) },
+  { k: "kartya", label: "Kártya", sub: "RFID / NFC / vonalkód", device: true,
+    icon: ico(<><rect x="2.5" y="6" width="14" height="10" rx="2" /><path d="M8 20h8M19 8.5a5 5 0 0 1 0 7M21.5 6a8.5 8.5 0 0 1 0 12" /></>) },
+  { k: "eid", label: "e-személyi", sub: "chipkártya-olvasó", device: true,
+    icon: ico(<><rect x="3" y="5" width="18" height="14" rx="2.5" /><rect x="6" y="9" width="5" height="4" rx="1" /><path d="M6 15.5h12M14 9.5h4M14 12h3" /></>) },
+  { k: "dap", label: "DÁP / QR-kód", sub: "QR-olvasó", device: true,
+    icon: ico(<><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1" /><rect x="14" y="3.5" width="6.5" height="6.5" rx="1" /><rect x="3.5" y="14" width="6.5" height="6.5" rx="1" /><path d="M14 14h3v3M20.5 14v.01M14 20.5h.01M17 20.5h3.5v-3.5" /></>) },
+  { k: "ujj", label: "Ujjlenyomat", sub: "USB-olvasó · vészhelyzet", device: true,
+    icon: ico(<><path d="M12 3.5a8 8 0 0 0-8 8v1.5M12 3.5a8 8 0 0 1 8 8v2.5" /><path d="M8 20c.8-2.2 1-4 1-6.5a3 3 0 0 1 6 0c0 3.5.3 5.5 1.5 7.5M12 20.5c-.6-2-.8-4-.8-6.5M5.5 15.5c0 2-.3 3.4-.9 4.6M18.5 18c.4-1.2.6-2.4.6-3.5" /></>) },
 ];
 // az ujjlenyomat-olvasó tárolóhelyei (1. hely = Teszt Elek, 2. hely = Példa Piroska)
 const FP_SLOTS: Record<number, string> = { 1: "pt-elek", 2: "pt-piroska" };
@@ -133,14 +142,21 @@ function Inner() {
       <h1 className="text-3xl font-extrabold mt-1 mb-1">Beteg azonosítása</h1>
       <p className="text-muted mb-5">Válasszon azonosítási módot. A beteg adatai az azonosítás után jelennek meg, és a hozzáférés naplózódik.</p>
 
-      <div role="tablist" className="flex flex-wrap gap-2 mb-5">
-        {TABS.map((t) => (
-          <button key={t.k} role="tab" aria-selected={mode === t.k} onClick={() => { setMode(t.k); setErr(""); }}
-            className={`rounded-xl border-2 px-4 py-2.5 text-left transition-colors ${mode === t.k ? "bg-navy text-white border-navy" : "bg-white border-line hover:bg-pale"}`}>
-            <div className="font-bold">{t.label}</div>
-            {t.sub && <div className={`text-xs ${mode === t.k ? "text-white/70" : "text-muted"}`}>{t.sub}</div>}
-          </button>
-        ))}
+      <div role="tablist" className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+        {TABS.map((t) => {
+          const on = mode === t.k;
+          return (
+            <button key={t.k} role="tab" aria-selected={on} onClick={() => { setMode(t.k); setErr(""); }}
+              className={`relative flex items-center gap-3.5 rounded-2xl border-2 p-3.5 text-left transition-all ${on ? "bg-navy text-white border-navy shadow-lg -translate-y-0.5" : "bg-white border-line hover:border-teal-2 hover:shadow-md"}`}>
+              <span className={`shrink-0 grid place-items-center h-11 w-11 sm:h-12 sm:w-12 rounded-xl ${on ? "bg-teal text-white" : t.device ? "bg-pale text-teal" : "bg-[#f1f4f7] text-muted"}`}>{t.icon}</span>
+              <span className="min-w-0">
+                <span className="block font-extrabold leading-tight">{t.label}</span>
+                <span className={`block text-xs mt-0.5 ${on ? "text-white/75" : "text-muted"}`}>{t.sub}</span>
+              </span>
+              {t.device && <span className={`hidden sm:block absolute top-2 right-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${on ? "bg-white/15 text-white" : "bg-pale text-teal"}`}>eszköz</span>}
+            </button>
+          );
+        })}
       </div>
 
       <div className="card p-6">
