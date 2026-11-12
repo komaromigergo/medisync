@@ -39,13 +39,19 @@ export function Header() {
 }
 
 export function Footer() {
-  const { reset, ready } = useStore();
+  const { reset, ready, sync } = useStore();
   return (
     <footer className="border-t border-line bg-white">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-4 text-[0.8rem] text-muted flex flex-wrap items-center gap-x-6 gap-y-2">
         <span>
           <b className="text-ink">Oktatási prototípus.</b> Szintetikus adatokkal készült, nem orvosi eszköz, klinikai döntéshez nem használható.
         </span>
+        {ready && (
+          <span title={sync === "online" ? "Az adatok minden eszközön közösek" : "Az adatok csak ebben a böngészőben vannak"} className="inline-flex items-center gap-1.5">
+            <span className={`h-2.5 w-2.5 rounded-full ${sync === "online" ? "bg-[#2f8f5b]" : "bg-[#c9a227]"}`} />
+            {sync === "online" ? "Közös adatbázis: online" : "Helyi mód (adatbázis nélkül)"}
+          </span>
+        )}
         {ready && (
           <button className="ml-auto underline underline-offset-2 hover:text-ink" onClick={() => { if (confirm("Visszaállítja a demó adatait az eredeti állapotra?")) reset(); }}>
             Demó visszaállítása

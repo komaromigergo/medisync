@@ -5,6 +5,7 @@ import type { AuditEntry, Dispense, Notice, Patient, Prescription, RxItem } from
 import { loadCatalog, type Catalog } from "./catalog";
 import { buildSeed, DOCTOR, PHARMACY, type AppState } from "./demo";
 import { newId, rxCode } from "./util";
+import { mergeStates } from "./merge";
 
 const KEY = "medisync-demo-v1";
 
@@ -22,6 +23,8 @@ interface Store {
   assignCard: (patientId: string, uid: string) => void;
   markNotice: (id: string) => void;
   reset: () => void;
+  /** Közös adatbázis állapota: "online" (több eszköz között szinkron), "local" (csak ez a böngésző), "off" (még tölt). */
+  sync: "off" | "online" | "local";
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -30,6 +33,45 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [cat, setCat] = useState<Catalog | null>(null);
   const [state, setState] = useState<AppState | null>(null);
   const loaded = useRef(false);
+  const [sync, setSync] = useState<"off" | "online" | "local">("off");
+  const stateRef = useRef<AppState | null>(null);
+  const dirty = useRef(false);
+  const lastVer = useRef(0);
+  const pushTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const same = (a: AppState | null, b: AppState | null) => JSON.stringify(a) === JSON.stringify(b);
+
+  /** Helyi módosítás: állapotváltás + jelölés, hogy feltöltendő a közös adatbázisba. */
+  const commit = useCallback((fn: (s: AppState | null) => AppState | null) => {
+    dirty.current = true;
+    setState(fn);
+  }, []);
+
+  const push = useCallback(async (reset = false) => {
+    const s = stateRef.current;
+    if (!s) return;
+    try {
+      const r = await fetch("/api/state", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state: s, reset }) });
+      if (!r.ok) { setSync("local"); return; }
+      const j = (await r.json()) as { version: number; state: AppState };
+      lastVer.current = j.version;
+      dirty.current = false;
+      setSync("online");
+      setState((prev) => { const m = prev ? mergeStates(prev, j.state) : j.state; return same(prev, m) ? prev : m; });
+    } catch { setSync("local"); }
+  }, []);
+
+  const pull = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/state?since=${lastVer.current}`, { cache: "no-store" });
+      if (!r.ok) { setSync("local"); return; }
+      const j = (await r.json()) as { version: number; unchanged?: boolean; state?: AppState | null };
+      setSync("online");
+      if (j.unchanged) return;
+      lastVer.current = j.version;
+      if (!j.state) { dirty.current = true; void push(); return; } // üres adatbázis: feltöltjük a helyi állapotot
+      setState((prev) => { const m = prev ? mergeStates(prev, j.state as AppState) : (j.state as AppState); return same(prev, m) ? prev : m; });
+    } catch { setSync("local"); }
+  }, [push]);
 
   useEffect(() => {
     let alive = true;
@@ -54,6 +96,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  useEffect(() => { stateRef.current = state; }, [state]);
+
+  // helyi módosítás után feltöltés a közös adatbázisba (kis késleltetéssel)
+  useEffect(() => {
+    if (!state || !loaded.current || !dirty.current) return;
+    clearTimeout(pushTimer.current);
+    pushTimer.current = setTimeout(() => void push(), 350);
+    return () => clearTimeout(pushTimer.current);
+  }, [state, push]);
+
+  // induláskor és időnként lekérdezés (csak látható lapnál)
+  useEffect(() => {
+    if (!state || !loaded.current) return;
+    void pull();
+    const id = setInterval(() => { if (document.visibilityState === "visible") void pull(); }, 4000);
+    const vis = () => { if (document.visibilityState === "visible") void pull(); };
+    document.addEventListener("visibilitychange", vis);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", vis); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!state, pull]);
+
   useEffect(() => {
     if (!state || !loaded.current) return;
     try {
@@ -64,7 +127,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [state]);
 
   const log = useCallback<Store["log"]>((e) => {
-    setState((s) => (s ? { ...s, audit: [{ ...e, id: newId("au"), ts: new Date().toISOString() }, ...s.audit] } : s));
+    commit((s) => (s ? { ...s, audit: [{ ...e, id: newId("au"), ts: new Date().toISOString() }, ...s.audit] } : s));
   }, []);
 
   const issuePrescription = useCallback<Store["issuePrescription"]>(
@@ -72,7 +135,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const rx: Prescription = {
         id: rxCode(), patientId, createdAt: new Date().toISOString(), doctor: DOCTOR.name, items, status: "kiadva", dispenses: {},
       };
-      setState((s) => {
+      commit((s) => {
         if (!s) return s;
         const notice: Notice = {
           id: newId("n"), ts: rx.createdAt, patientId, read: false,
@@ -91,7 +154,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const dispense = useCallback<Store["dispense"]>((rxId, itemId, d) => {
-    setState((s) => {
+    commit((s) => {
       if (!s) return s;
       const at = new Date().toISOString();
       const rx = s.prescriptions.find((r) => r.id === rxId);
@@ -131,7 +194,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const markNotice = useCallback((id: string) => {
-    setState((s) => (s ? { ...s, notices: s.notices.map((n) => (n.id === id ? { ...n, read: true } : n)) } : s));
+    commit((s) => (s ? { ...s, notices: s.notices.map((n) => (n.id === id ? { ...n, read: true } : n)) } : s));
   }, []);
 
   const reset = useCallback(() => {
@@ -141,8 +204,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* semmi */
     }
-    setState(buildSeed(cat));
-  }, [cat]);
+    dirty.current = true;
+    setState({ ...buildSeed(cat), epoch: Date.now() });
+    setTimeout(() => void push(true), 100);
+  }, [cat, push]);
 
   const value = useMemo<Store>(
     () => ({
@@ -153,9 +218,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       prescriptionsOf: (id) => (state?.prescriptions ?? []).filter((r) => r.patientId === id),
       auditOf: (id) => (state?.audit ?? []).filter((a) => a.patientId === id),
       noticesOf: (id) => (state?.notices ?? []).filter((n) => n.patientId === id),
-      log, issuePrescription, dispense, assignCard, markNotice, reset,
+      log, issuePrescription, dispense, assignCard, markNotice, reset, sync,
     }),
-    [state, cat, log, issuePrescription, dispense, assignCard, markNotice, reset],
+    [state, cat, log, issuePrescription, dispense, assignCard, markNotice, reset, sync],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

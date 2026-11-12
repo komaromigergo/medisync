@@ -9,6 +9,8 @@ export interface AppState {
   prescriptions: Prescription[];
   audit: AuditEntry[];
   notices: Notice[];
+  /** Visszaállítás-azonosító: a magasabb epoch felülírja a régit minden eszközön. */
+  epoch?: number;
 }
 
 export const DOCTOR = { name: "Dr. Minta Anna", role: "háziorvos", place: "Minta Háziorvosi Rendelő, Kaposvár" };
